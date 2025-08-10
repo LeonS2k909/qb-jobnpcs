@@ -9,7 +9,8 @@ local Recruiters = {
         coords = vector3(441.3, -978.85, 30.69),
         heading = 150.0,
         zone = "npc_police_signon",
-        targetDistance = 4.0
+        targetDistance = 4.0,
+        useExactZ = true
     },
     {
         job = "ambulance",
@@ -18,7 +19,18 @@ local Recruiters = {
         coords = vector3(311.61, -594.11, 43.28),
         heading = 340.22,
         zone = "npc_ems_signon",
-        targetDistance = 4.0
+        targetDistance = 4.0,
+        useExactZ = true
+    },
+    {
+        job = "taxi",
+        label = "Taxi Driver",
+        model = `s_m_m_gentransport`,
+        coords = vector3(898.68, -175.97, 73.83),
+        heading = 260.68,
+        zone = "npc_taxi_signon",
+        targetDistance = 4.0,
+        useExactZ = true
     }
 }
 
@@ -65,28 +77,25 @@ local function spawnOne(rec)
     RequestModel(rec.model)
     while not HasModelLoaded(rec.model) do Wait(0) end
 
-    local found, groundZ = GetGroundZFor_3dCoord(rec.coords.x, rec.coords.y, rec.coords.z + 1.0, 0)
-    local z = found and groundZ or rec.coords.z
+    local x, y, z = rec.coords.x, rec.coords.y, rec.coords.z
+    local ped = CreatePed(4, rec.model, x, y, z, rec.heading, false, true)
 
-    local ped = CreatePed(4, rec.model, rec.coords.x, rec.coords.y, z, rec.heading, false, true)
     SetEntityAsMissionEntity(ped, true, true)
     SetEntityInvincible(ped, true)
     SetBlockingOfNonTemporaryEvents(ped, true)
+    SetPedCanRagdoll(ped, false)
+
+    -- exact placement to avoid float/sink on desks or stairs
+    SetEntityCoordsNoOffset(ped, x, y, z, false, false, false)
+    SetEntityHeading(ped, rec.heading)
     FreezeEntityPosition(ped, true)
 
     addTargets(rec, ped)
     SetModelAsNoLongerNeeded(rec.model)
-
     Peds[rec.zone] = ped
 end
 
 local function spawnAll()
-    -- clean any old zones from earlier versions (safe if not present)
-    if exports['qb-target'].RemoveZone then
-        for _, rec in ipairs(Recruiters) do
-            exports['qb-target']:RemoveZone(rec.zone)
-        end
-    end
     for _, rec in ipairs(Recruiters) do
         spawnOne(rec)
     end
@@ -124,5 +133,4 @@ RegisterNetEvent('QBCore:Client:OnJobUpdate', function()
     end
 end)
 
--- manual respawn
 RegisterCommand('recruiters', function() spawnAll() end, false)
